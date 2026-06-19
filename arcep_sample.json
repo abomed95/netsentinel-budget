@@ -1,0 +1,60 @@
+{
+  "source": "ARCEP / ANSSI — Données synthétiques open source",
+  "description": "Métriques réseau simulées pour prototype NetSentinel",
+  "last_updated": "2026-06-19",
+  "departments": [
+    {
+      "id": "A", "name": "Département Alpha", "region": "Nord",
+      "baseline": { "latency_ms": 95, "packet_loss_pct": 4.2, "bandwidth_mbps": 45, "cpu_pct": 78, "temp_celsius": 68 },
+      "incidents_2025": [
+        { "date": "2025-01-15", "duration_min": 120, "cause": "Surcharge CPU routeur", "cost_eur": 28000 },
+        { "date": "2025-03-22", "duration_min": 240, "cause": "Perte de paquets critique", "cost_eur": 56000 },
+        { "date": "2025-06-08", "duration_min": 90,  "cause": "Température équipement", "cost_eur": 21000 },
+        { "date": "2025-09-14", "duration_min": 180, "cause": "Bande passante saturée",  "cost_eur": 42000 },
+        { "date": "2025-11-30", "duration_min": 60,  "cause": "Maintenance non planifiée","cost_eur": 14000 }
+      ]
+    },
+    {
+      "id": "B", "name": "Département Bêta", "region": "Est",
+      "baseline": { "latency_ms": 28, "packet_loss_pct": 0.8, "bandwidth_mbps": 180, "cpu_pct": 35, "temp_celsius": 42 },
+      "incidents_2025": [
+        { "date": "2025-04-10", "duration_min": 45, "cause": "Fibre coupée", "cost_eur": 10500 },
+        { "date": "2025-08-19", "duration_min": 30, "cause": "Mise à jour firmware", "cost_eur": 7000 }
+      ]
+    },
+    {
+      "id": "C", "name": "Département Gamma", "region": "Sud",
+      "baseline": { "latency_ms": 62, "packet_loss_pct": 2.1, "bandwidth_mbps": 90, "cpu_pct": 58, "temp_celsius": 55 },
+      "incidents_2025": [
+        { "date": "2025-02-05", "duration_min": 150, "cause": "Surcharge réseau", "cost_eur": 35000 },
+        { "date": "2025-05-17", "duration_min": 200, "cause": "Panne alimentation", "cost_eur": 47000 },
+        { "date": "2025-10-03", "duration_min": 75,  "cause": "Attaque DDoS",      "cost_eur": 17500 }
+      ]
+    },
+    {
+      "id": "D", "name": "Département Delta", "region": "Ouest",
+      "baseline": { "latency_ms": 41, "packet_loss_pct": 1.4, "bandwidth_mbps": 130, "cpu_pct": 44, "temp_celsius": 48 },
+      "incidents_2025": [
+        { "date": "2025-03-01", "duration_min": 60,  "cause": "Routeur défaillant", "cost_eur": 14000 },
+        { "date": "2025-07-22", "duration_min": 110, "cause": "Câblage défectueux",  "cost_eur": 25700 },
+        { "date": "2025-12-11", "duration_min": 85,  "cause": "Bande passante saturée", "cost_eur": 19800 }
+      ]
+    },
+    {
+      "id": "E", "name": "Département Epsilon", "region": "Centre",
+      "baseline": { "latency_ms": 18, "packet_loss_pct": 0.3, "bandwidth_mbps": 210, "cpu_pct": 22, "temp_celsius": 38 },
+      "incidents_2025": [
+        { "date": "2025-06-30", "duration_min": 20, "cause": "Test maintenance", "cost_eur": 4700 }
+      ]
+    }
+  ],
+  "model_features": [
+    "latency_mean_1h", "latency_max_1h", "latency_std_1h",
+    "packet_loss_mean_1h", "packet_loss_max_1h",
+    "bandwidth_mean_1h", "bandwidth_min_1h", "bandwidth_trend",
+    "cpu_mean_1h", "cpu_max_1h",
+    "temperature_mean_1h", "temperature_max_1h",
+    "hour_of_day", "day_of_week", "is_holiday", "is_peak_hour"
+  ],
+  "target": "outage_in_next_60min"
+}
