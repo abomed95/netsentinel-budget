@@ -46,6 +46,16 @@
       "incidents_2025": [
         { "date": "2025-06-30", "duration_min": 20, "cause": "Test maintenance", "cost_eur": 4700 }
       ]
+    },
+    {
+      "id": "F", "name": "Département Zêta", "region": "Sud-Est",
+      "baseline": { "latency_ms": 74, "packet_loss_pct": 2.9, "bandwidth_mbps": 70, "cpu_pct": 63, "temp_celsius": 59 },
+      "incidents_2025": [
+        { "date": "2025-01-28", "duration_min": 95,  "cause": "Surcharge CPU routeur",   "cost_eur": 22300 },
+        { "date": "2025-04-19", "duration_min": 160, "cause": "Bande passante saturée",  "cost_eur": 37500 },
+        { "date": "2025-08-07", "duration_min": 70,  "cause": "Température équipement",  "cost_eur": 16400 },
+        { "date": "2025-11-12", "duration_min": 130, "cause": "Perte de paquets critique","cost_eur": 30600 }
+      ]
     }
   ],
   "model_features": [
