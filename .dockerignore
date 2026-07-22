@@ -1,0 +1,30 @@
+# Contrôle de version / CI
+.git/
+.github/
+.gitignore
+
+# Frontend (la démo passe par /dashboard servi par l'API)
+frontend/
+
+# Tests et docs
+tests/
+README.md
+CLAUDE.md
+LICENSE
+
+# Modèles générés localement (réentraînés dans l'image via `python -m ml.train`)
+ml/models/
+
+# Artefacts Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# Environnement local
+.env
+*.log
