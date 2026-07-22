@@ -42,6 +42,9 @@ ml/
 data/departments.json  référentiel des 6 départements (baselines + incidents 2025)
 tests/test_api.py    tests via TestClient
 frontend/            ébauche React (non fonctionnelle) — la démo passe par /dashboard
+Dockerfile           image Cloud Run (modèles pré-entraînés dans l'image, écoute sur $PORT)
+cloudbuild.yaml      build → push Artifact Registry → deploy Cloud Run
+.github/workflows/   ci.yml (tests) + deploy.yml (déploiement Cloud Run sur push main)
 ```
 
 ## Conventions et points d'attention
@@ -61,6 +64,19 @@ frontend/            ébauche React (non fonctionnelle) — la démo passe par /
   de démo ; elles disparaîtront quand les sondes réelles alimenteront `POST /telemetry`.
 - **Tests** : après modif du code, lancer `python -m pytest tests/ -v`. Certains tests
   utilisent `random.seed()` — garder le déterminisme du simulateur.
+
+## Déploiement (Google Cloud Run)
+
+- **Image** : `Dockerfile` (python:3.11-slim). Les modèles sont **pré-entraînés dans l'image**
+  (`RUN python -m ml.train`) pour éviter l'entraînement au premier appel. L'app écoute sur
+  la variable `$PORT` fournie par Cloud Run (8080 par défaut).
+- **Build/deploy** : `cloudbuild.yaml` (build → push Artifact Registry → deploy Cloud Run).
+  Substitutions : `_REGION`, `_SERVICE`, `_REPO`, `_TAG`. ⚠️ `$SHORT_SHA` n'existe que pour
+  les builds déclenchés — passer `_TAG` explicitement en CI ou en lancement manuel.
+- **CI/CD** : `.github/workflows/deploy.yml` déploie sur push `main` (ou manuellement).
+  Requiert la variable `GCP_PROJECT_ID` et le secret `GCP_SA_KEY` (JSON compte de service).
+- **max-instances=1** tant que le stockage est en mémoire (`store.py`) : il n'est pas partagé
+  entre instances. Brancher un stockage externe avant de scaler horizontalement.
 
 ## Git
 

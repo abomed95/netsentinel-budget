@@ -8,14 +8,17 @@
 #   gcloud builds submit --config cloudbuild.yaml \
 #     --substitutions=_REGION=europe-west1
 #
-# Variables substituables (valeurs par défaut ci-dessous, surchargeables via --substitutions) :
+# Variables substituables (valeurs par défaut ci-dessous, surchargeables via --substitutions).
+# _TAG a une valeur par défaut car $SHORT_SHA n'est renseigné que pour les builds
+# DÉCLENCHÉS (trigger) — la CI/le lancement manuel doit passer _TAG explicitement.
 substitutions:
   _REGION: europe-west1
   _SERVICE: netsentinel
   _REPO: netsentinel
+  _TAG: latest
 
 images:
-  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}"
 
 steps:
   # 1. Build de l'image
@@ -24,7 +27,7 @@ steps:
     args:
       - build
       - "-t"
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}"
       - "-t"
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest"
       - .
@@ -47,7 +50,7 @@ steps:
       - run
       - deploy
       - "${_SERVICE}"
-      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}"
+      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${_TAG}"
       - "--region=${_REGION}"
       - "--platform=managed"
       - "--allow-unauthenticated"
