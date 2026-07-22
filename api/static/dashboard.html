@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NetSentinel — Supervision réseau</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>" />
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --status-good:    #0ca30c;
+    --status-warning: #fab219;
+    --status-critical:#d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 1.35rem; }
+  h1 small { color: var(--text-secondary); font-weight: 400; font-size: 0.85rem; display: block; margin-top: 2px; }
+  .controls { display: flex; gap: 8px; }
+  button {
+    font: inherit; font-size: 0.85rem;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--baseline); }
+  button.primary { background: var(--series-1); border-color: transparent; color: #fff; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .label { color: var(--text-secondary); font-size: 0.78rem; margin-bottom: 6px; }
+  .tile .value { font-size: 1.7rem; font-weight: 650; }
+  .tile .unit { font-size: 0.9rem; color: var(--text-secondary); font-weight: 400; }
+
+  section { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  section h2 { font-size: 0.95rem; margin-bottom: 4px; }
+  section .sub { color: var(--text-muted); font-size: 0.78rem; margin-bottom: 14px; }
+
+  /* Graphique en barres : probabilité de coupure H+1 par département */
+  .barrow { display: grid; grid-template-columns: 170px 1fr 52px; align-items: center; gap: 10px; padding: 5px 0; }
+  .barrow .name { font-size: 0.82rem; color: var(--text-secondary); text-align: right; }
+  .track { position: relative; height: 14px; background: transparent; border-left: 2px solid var(--baseline); }
+  .track .grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--gridline); }
+  .bar { position: absolute; top: 0; bottom: 0; left: 0; background: var(--series-1); border-radius: 0 4px 4px 0; transition: width .4s ease; }
+  .barrow .val { font-size: 0.82rem; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  .axis { display: grid; grid-template-columns: 170px 1fr 52px; gap: 10px; margin-top: 4px; }
+  .axis .ticks { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--gridline); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--gridline); font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .table-scroll { overflow-x: auto; }
+
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip.normal   .dot { background: var(--status-good); }
+  .chip.modere   .dot { background: var(--status-warning); }
+  .chip.critique .dot { background: var(--status-critical); }
+
+  .alert-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--gridline); font-size: 0.82rem; align-items: baseline; }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-item time { color: var(--text-muted); font-size: 0.74rem; white-space: nowrap; }
+  .empty { color: var(--text-muted); font-size: 0.82rem; padding: 8px 0; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 0.78rem; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  }
+  #tooltip strong { display: block; margin-bottom: 2px; }
+  footer { color: var(--text-muted); font-size: 0.74rem; text-align: center; margin: 12px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NetSentinel · Supervision réseau
+    <small>Ministère du Budget — 6 départements · prototype (données simulées)</small>
+  </h1>
+  <div class="controls">
+    <button id="btn-tick" class="primary">▶ Simuler 5 min</button>
+    <button id="btn-refresh">⟳ Actualiser</button>
+  </div>
+</header>
+
+<div class="tiles" id="tiles"></div>
+
+<section>
+  <h2>Probabilité de coupure H+1 par département</h2>
+  <div class="sub">Modèle de classification entraîné sur données synthétiques — seuils : modéré &gt; 45 %, critique &gt; 70 %</div>
+  <div id="bars"></div>
+  <div class="axis"><div></div><div class="ticks"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div><div></div></div>
+</section>
+
+<section>
+  <h2>État détaillé du réseau</h2>
+  <div class="sub">Dernière télémétrie reçue par département</div>
+  <div class="table-scroll"><table id="detail">
+    <thead><tr>
+      <th>Département</th><th>Région</th><th>Latence (ms)</th><th>Pertes (%)</th>
+      <th>Débit (Mbps)</th><th>CPU (%)</th><th>Temp. (°C)</th><th>Risque H+1</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Dernières alertes</h2>
+  <div class="sub">Générées automatiquement au franchissement des seuils de risque</div>
+  <div id="alerts"></div>
+</section>
+
+<footer>NetSentinel v2 — prototype API · documentation interactive : <a href="/docs">/docs</a></footer>
+<div id="tooltip"></div>
+
+<script>
+const api = (path, options) => fetch(`/api/v1${path}`, options).then(r => {
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+});
+
+const fmtEur = v => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
+const pct = v => `${(v * 100).toFixed(0)} %`;
+const chip = level => {
+  const cls = level === "CRITIQUE" ? "critique" : level === "MODÉRÉ" ? "modere" : "normal";
+  const icon = level === "CRITIQUE" ? "⚠" : level === "MODÉRÉ" ? "◐" : "✓";
+  return `<span class="chip ${cls}"><span class="dot"></span>${icon} ${level}</span>`;
+};
+
+const tooltip = document.getElementById("tooltip");
+function bindTooltip(el, html) {
+  el.addEventListener("mousemove", e => {
+    tooltip.innerHTML = html;
+    tooltip.style.display = "block";
+    tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 220) + "px";
+    tooltip.style.top = (e.clientY + 14) + "px";
+  });
+  el.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+}
+
+async function refresh() {
+  let overview;
+  try {
+    overview = await api("/reports/overview");
+  } catch {
+    // Pas encore de télémétrie : on amorce la simulation puis on réessaie
+    await api("/simulate/tick?n=6", { method: "POST" });
+    overview = await api("/reports/overview");
+  }
+  const departments = await api("/departments");
+  const alerts = await api("/alerts?limit=8");
+  const byId = Object.fromEntries(departments.map(d => [d.id, d]));
+
+  document.getElementById("tiles").innerHTML = `
+    <div class="tile"><div class="label">Santé du réseau</div>
+      <div class="value">${overview.network_health_score}<span class="unit"> / 100</span></div></div>
+    <div class="tile"><div class="label">Départements à risque</div>
+      <div class="value">${overview.departments_critical + overview.departments_moderate}<span class="unit"> / ${overview.departments_total}</span></div></div>
+    <div class="tile"><div class="label">Alertes actives</div>
+      <div class="value">${overview.active_alerts}</div></div>
+    <div class="tile"><div class="label">Économies annuelles estimées</div>
+      <div class="value">${fmtEur(overview.expected_annual_savings_eur)}</div></div>`;
+
+  const bars = document.getElementById("bars");
+  bars.innerHTML = "";
+  for (const p of overview.predictions) {
+    const dept = byId[p.department_id];
+    const row = document.createElement("div");
+    row.className = "barrow";
+    row.innerHTML = `
+      <div class="name">${dept.name}</div>
+      <div class="track">
+        <div class="grid" style="left:25%"></div><div class="grid" style="left:50%"></div><div class="grid" style="left:75%"></div>
+        <div class="bar" style="width:${(p.outage_probability * 100).toFixed(1)}%"></div>
+      </div>
+      <div class="val">${pct(p.outage_probability)}</div>`;
+    bindTooltip(row.querySelector(".track"), `
+      <strong>${dept.name} (${dept.region})</strong>
+      Probabilité de coupure H+1 : ${pct(p.outage_probability)}<br>
+      Niveau : ${p.risk_level}<br>
+      Perte attendue : ${fmtEur(p.expected_loss_eur)}<br>
+      ${p.recommendation}`);
+    bars.appendChild(row);
+  }
+
+  const tbody = document.querySelector("#detail tbody");
+  tbody.innerHTML = "";
+  for (const p of overview.predictions) {
+    const dept = byId[p.department_id];
+    const m = await api(`/telemetry/${p.department_id}/latest`);
+    tbody.insertAdjacentHTML("beforeend", `<tr>
+      <td>${dept.name}</td><td>${dept.region}</td>
+      <td>${m.latency_ms.toFixed(0)}</td><td>${m.packet_loss_pct.toFixed(1)}</td>
+      <td>${m.bandwidth_mbps.toFixed(0)}</td><td>${m.cpu_pct.toFixed(0)}</td>
+      <td>${m.temperature_celsius.toFixed(0)}</td><td>${chip(p.risk_level)}</td>
+    </tr>`);
+  }
+
+  const alertsBox = document.getElementById("alerts");
+  alertsBox.innerHTML = alerts.length
+    ? alerts.map(a => `<div class="alert-item">
+        <time>${new Date(a.created_at).toLocaleTimeString("fr-FR")}</time>
+        ${chip(a.level)}<span>${a.message}</span></div>`).join("")
+    : `<div class="empty">Aucune alerte — réseau stable.</div>`;
+}
+
+document.getElementById("btn-refresh").addEventListener("click", refresh);
+document.getElementById("btn-tick").addEventListener("click", async () => {
+  await api("/simulate/tick", { method: "POST" });
+  await refresh();
+});
+
+refresh().catch(err => {
+  document.getElementById("tiles").innerHTML =
+    `<div class="tile"><div class="label">Erreur</div><div class="value" style="font-size:1rem">API indisponible (${err.message})</div></div>`;
+});
+</script>
+</body>
+</html>

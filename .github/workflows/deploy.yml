@@ -1,0 +1,43 @@
+name: Déploiement Cloud Run
+
+# Déclenché à chaque push sur main (après fusion d'une PR) ou manuellement.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Secrets/variables à configurer dans le dépôt (Settings → Secrets and variables → Actions) :
+#   GCP_PROJECT_ID          (variable)  ex. mon-projet-budget
+#   GCP_SA_KEY              (secret)    JSON d'un compte de service avec les rôles
+#                                       roles/run.admin, roles/cloudbuild.builds.editor,
+#                                       roles/artifactregistry.writer, roles/iam.serviceAccountUser
+#
+# ⚠️ Un JSON de compte de service est une clé longue durée. Pour la production,
+#    préférer Workload Identity Federation (google-github-actions/auth avec
+#    workload_identity_provider) — voir README, aucune clé à stocker.
+
+env:
+  REGION: europe-west1
+
+jobs:
+  deploy:
+    name: Build + déploiement
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authentification Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configuration gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Build + push + deploy (Cloud Build)
+        run: |
+          gcloud builds submit --config cloudbuild.yaml \
+            --substitutions=_REGION=${REGION},_TAG=${GITHUB_SHA::7}
