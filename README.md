@@ -17,11 +17,11 @@ Cette section décrit ce que contient **réellement** le dépôt aujourd'hui, po
   contributions de cette pondération, pas le résultat d'une explication de modèle.
 - **Les performances annoncées plus bas** (précision, rappel, délai de détection, ROI) sont des objectifs de
   conception : aucune évaluation ne les étaye dans ce dépôt.
-- **Tableau de bord React** : `App.js` et `index.js` référencent `reseau-prediction.jsx` et un `package.json`
-  qui **ne sont pas dans le dépôt**. Les commandes `npm install` / `npm start` de la section « Démo » ne peuvent
-  donc pas fonctionner tant que ces fichiers ne sont pas ajoutés.
-- **Ce qui fonctionne et est testé** : l'API FastAPI (31 tests), son image Docker et son déploiement
-  (`DEPLOY.md`).
+- **Tableau de bord React** (`reseau-prediction.jsx`) : quatre onglets — tableau de bord, prédiction H+1,
+  alertes, rapport. Les mesures y sont **simulées** à partir de `data/arcep_sample.json` ; le score est recalculé
+  dans le navigateur avec la même formule que l'API (`dashboard/score.js`, vérifié par un test).
+- **Ce qui fonctionne et est testé** : l'API FastAPI (33 tests), le calcul de score du tableau de bord (4 tests),
+  l'image Docker et le déploiement (`DEPLOY.md`).
 
 ### Lancer l'API
 
@@ -110,7 +110,9 @@ netsentinel-budget/
 ├── api/main.py              # API FastAPI (score, validation, accès)
 ├── data/arcep_sample.json   # 5 départements synthétiques
 ├── tests/test_api.py        # tests de l'API
-├── App.js, index.js, index.html   # amorce du tableau de bord (sources incomplètes)
+├── reseau-prediction.jsx    # tableau de bord React (4 onglets)
+├── dashboard/               # calcul de score partagé, feuille de style
+├── App.js, index.js, index.html, package.json, vite.config.js
 ├── Dockerfile, cloudbuild.yaml    # image et pipeline Google Cloud
 ├── requirements.txt         # exécution · requirements-ml.txt : futur modèle
 ├── AUDIT.md, SECURITY.md, DEPLOY.md

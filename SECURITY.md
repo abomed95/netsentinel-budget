@@ -34,9 +34,9 @@ téléversement de fichiers, modèle de langage (le projet n'en appelle aucun).
 - **Limitation de débit en mémoire**, par instance et remise à zéro à chaque redémarrage.
 - **`/`, `/health` et `/docs`** restent accessibles sans clé. La documentation interactive révèle le schéma de
   l'API ; désactive-la au besoin (`FastAPI(docs_url=None, redoc_url=None)`).
-- **Polices Google** dans `index.html` : le navigateur de chaque utilisateur contacte Google. À héberger
-  localement pour un outil d'administration publique.
-- **Tableau de bord** : non audité, ses sources n'étant pas dans le dépôt.
+- **Tableau de bord** : public par construction (aucune clé, mesures simulées). Il est servi avec une politique
+  de contenu stricte (`script-src 'self'`, aucun appel externe). Le jour où il affichera de vraies mesures, il
+  faudra le placer derrière une authentification.
 - **Fiabilité du score.** Ce n'est pas une faille au sens strict, mais c'est le principal risque du projet : le
   score est une heuristique, pas un modèle évalué. Des décisions d'intervention ne devraient pas reposer dessus
   sans validation sur des données réelles.

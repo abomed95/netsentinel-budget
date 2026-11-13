@@ -11,7 +11,7 @@ par toi.
 | Composant | État |
 |---|---|
 | **API FastAPI** | Déployable sur **Cloud Run** (ce document) |
-| **Tableau de bord React** | **Non déployable** : `reseau-prediction.jsx` et `package.json` manquent dans le dépôt. Quand ils y seront, le plus simple est un second service Cloud Run (nginx servant le build) ou Firebase Hosting, avec `NETSENTINEL_CORS_ORIGINS` réglé sur son adresse. |
+| **Tableau de bord React** | Compilé dans la même image et servi par l'API sous **`/dashboard/`**. Il calcule ses scores dans le navigateur à partir de mesures simulées : il n'appelle pas l'API et n'a pas besoin de la clé. |
 
 **Base de données et stockage : aucun.** L'API est sans état ; le référentiel des départements est un fichier
 JSON embarqué dans l'image. Si un historique des prédictions ou des métriques devient nécessaire, la suite

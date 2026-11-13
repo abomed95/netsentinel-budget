@@ -27,15 +27,16 @@ jobs:
       - name: Tests
         run: python -m pytest
 
-  # Le job « build-frontend » d'origine est retiré tant que les sources du tableau de
-  # bord (package.json, reseau-prediction.jsx) ne sont pas dans le dépôt : il ne
-  # pouvait qu'échouer. À rétablir avec elles :
-  #
-  #   build-frontend:
-  #     runs-on: ubuntu-latest
-  #     steps:
-  #       - uses: actions/checkout@v4
-  #       - uses: actions/setup-node@v4
-  #         with: { node-version: '20', cache: 'npm' }
-  #       - run: npm ci
-  #       - run: npm run build
+  build-frontend:
+    name: Tableau de bord React (tests + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Le score du tableau de bord doit rester identique à celui de l'API.
+      - run: npm test
+      - run: npm run build
