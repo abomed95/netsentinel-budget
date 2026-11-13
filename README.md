@@ -8,6 +8,31 @@
 
 ---
 
+## ⚠️ État réel du prototype
+
+Cette section décrit ce que contient **réellement** le dépôt aujourd'hui, pour éviter tout malentendu.
+
+- **Score de risque** : combinaison pondérée de cinq métriques (heuristique à poids fixes, `api/main.py`).
+  **Aucun modèle LightGBM ou LSTM n'est entraîné ni chargé.** Les « valeurs SHAP » renvoyées par l'API sont les
+  contributions de cette pondération, pas le résultat d'une explication de modèle.
+- **Les performances annoncées plus bas** (précision, rappel, délai de détection, ROI) sont des objectifs de
+  conception : aucune évaluation ne les étaye dans ce dépôt.
+- **Tableau de bord React** : `App.js` et `index.js` référencent `reseau-prediction.jsx` et un `package.json`
+  qui **ne sont pas dans le dépôt**. Les commandes `npm install` / `npm start` de la section « Démo » ne peuvent
+  donc pas fonctionner tant que ces fichiers ne sont pas ajoutés.
+- **Ce qui fonctionne et est testé** : l'API FastAPI (31 tests), son image Docker et son déploiement
+  (`DEPLOY.md`).
+
+### Lancer l'API
+
+```bash
+pip install -r requirements-dev.txt
+uvicorn api.main:app --reload --port 8000     # documentation interactive : http://localhost:8000/docs
+python -m pytest
+```
+
+---
+
 ## 🎯 Objectif
 
 Anticiper les coupures réseau dans les départements ministériels **1 heure avant** qu'elles surviennent, afin de déclencher des actions préventives et réduire les pertes opérationnelles estimées à **€233 000/an**.
@@ -82,11 +107,14 @@ Métriques réseau (toutes les 5 min)
 
 ```
 netsentinel-budget/
-├── src/
-│   └── reseau-prediction.jsx   # Dashboard React principal
-├── README.md
-├── package.json
-└── .gitignore
+├── api/main.py              # API FastAPI (score, validation, accès)
+├── data/arcep_sample.json   # 5 départements synthétiques
+├── tests/test_api.py        # tests de l'API
+├── App.js, index.js, index.html   # amorce du tableau de bord (sources incomplètes)
+├── Dockerfile, cloudbuild.yaml    # image et pipeline Google Cloud
+├── requirements.txt         # exécution · requirements-ml.txt : futur modèle
+├── AUDIT.md, SECURITY.md, DEPLOY.md
+└── README.md
 ```
 
 ---
