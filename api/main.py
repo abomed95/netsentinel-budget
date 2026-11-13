@@ -26,6 +26,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ── Configuration (variables d'environnement) ───────────────────────────────
@@ -87,9 +88,21 @@ if CORS_ORIGINS:
     )
 
 
+# Tableau de bord compilé (npm run build), servi sous /dashboard/ s'il est présent.
+DASHBOARD_DIR = Path(os.getenv("NETSENTINEL_DASHBOARD_DIR", BASE_DIR / "build"))
+# Le tableau de bord ne charge que ses propres fichiers : tout le reste est fermé.
+# 'unsafe-inline' pour les styles seulement (attributs style posés par React).
+DASHBOARD_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                 "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
+    if request.url.path.startswith("/dashboard"):
+        response.headers.setdefault("Content-Security-Policy", DASHBOARD_CSP)
+        # Les fichiers du tableau de bord sont publics et peuvent être revalidés par le navigateur.
+        response.headers.setdefault("Cache-Control", "no-cache")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
@@ -298,6 +311,12 @@ def list_departments():
         raise HTTPException(503, "Référentiel des départements indisponible.")
     ids = [d["id"] for d in departments]
     return {"departments": ids, "count": len(ids)}
+
+
+# Monté en dernier : les routes de l'API gardent la priorité. Le tableau de bord
+# calcule ses scores dans le navigateur, il n'a donc pas besoin de la clé d'API.
+if (DASHBOARD_DIR / "index.html").is_file():
+    app.mount("/dashboard", StaticFiles(directory=DASHBOARD_DIR, html=True), name="dashboard")
 
 
 # ── Lancement ─────────────────────────────────────────────────────────────────

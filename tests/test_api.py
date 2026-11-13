@@ -153,3 +153,29 @@ class TestAcces:
             importlib.reload(main)
         monkeypatch.undo()
         importlib.reload(main)
+
+
+# ── Tableau de bord ──────────────────────────────────────────────────────────
+class TestTableauDeBord:
+    def test_servi_sous_dashboard_avec_sa_politique_de_contenu(self, monkeypatch, tmp_path):
+        (tmp_path / "index.html").write_text("<!doctype html><title>NetSentinel</title>", encoding="utf-8")
+        monkeypatch.setenv("NETSENTINEL_DASHBOARD_DIR", str(tmp_path))
+        module = importlib.reload(main)
+        try:
+            response = TestClient(module.app).get("/dashboard/")
+            assert response.status_code == 200 and "NetSentinel" in response.text
+            assert "script-src 'self'" in response.headers["content-security-policy"]
+            # L'API reste prioritaire sur ses propres routes.
+            assert TestClient(module.app).get("/health").json()["status"] == "ok"
+        finally:
+            monkeypatch.undo()
+            importlib.reload(main)
+
+    def test_absent_sans_build(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("NETSENTINEL_DASHBOARD_DIR", str(tmp_path / "vide"))
+        module = importlib.reload(main)
+        try:
+            assert TestClient(module.app).get("/dashboard/").status_code == 404
+        finally:
+            monkeypatch.undo()
+            importlib.reload(main)
