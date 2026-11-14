@@ -114,6 +114,7 @@ netsentinel-budget/
 ├── dashboard/               # calcul de score partagé, feuille de style
 ├── App.js, index.js, index.html, package.json, vite.config.js
 ├── Dockerfile, cloudbuild.yaml    # image et pipeline Google Cloud
+├── deploy/gcp/              # scripts de déploiement (simulation par défaut, --apply pour agir)
 ├── requirements.txt         # exécution · requirements-ml.txt : futur modèle
 ├── AUDIT.md, SECURITY.md, DEPLOY.md
 └── README.md
