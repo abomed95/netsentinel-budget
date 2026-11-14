@@ -1,10 +1,12 @@
 # DEPLOY — NetSentinel sur Google Cloud
 
-Rien de ce document n'a été exécuté : aucune ressource n'a été créée ni facturée. Les commandes sont à lancer
-par toi.
+Rien n'a été exécuté sur Google Cloud : aucune ressource n'a été créée ni facturée. Les scripts de
+`deploy/gcp/` sont à lancer par toi.
 
 **Testé en local** : build de l'image, exécution en utilisateur non privilégié, refus de démarrer sans clé d'API,
-`/health`, `/predict` avec et sans clé, `/departments`.
+`/health`, `/predict` avec et sans clé, `/departments`. Scripts : dry run relu, et mode `--apply` exécuté contre une
+doublure de `gcloud`, la vérification finale interrogeant la vraie API lancée en local (200 avec la clé, 401 sans ;
+la clé n'apparaît dans aucun argument de commande).
 
 ## 1. Ce qui est déployé — et ce qui ne l'est pas
 
@@ -17,105 +19,62 @@ par toi.
 JSON embarqué dans l'image. Si un historique des prédictions ou des métriques devient nécessaire, la suite
 logique est BigQuery (séries temporelles, analyses) plutôt qu'une base relationnelle.
 
-## 2. Variables à renseigner
+## 2. Les scripts (`deploy/gcp/`)
+
+Toute la procédure est scriptée. Chaque script **affiche** ce qu'il ferait (dry run) ; il n'agit qu'avec `--apply`.
+Lance-les depuis **Cloud Shell** (console Google Cloud, bouton `>_`) : `gcloud` y est déjà installé et connecté.
+
+| Script | Rôle | Quand |
+|---|---|---|
+| `setup.sh` | API, dépôt d'images, compte de service, clé d'API générée, droits minimaux (application et Cloud Build) | une fois ; relançable sans risque |
+| `first-deploy.sh` | construit l'image, crée le service, vérifie `/health` et `/predict` (200 avec la clé, 401 sans) | une fois |
+| `rotate-key.sh` | nouvelle clé d'API, nouvelle révision, anciennes versions désactivées | en cas de fuite ou de départ d'un prestataire |
+| `rollback.sh` | liste les révisions, ou renvoie le trafic vers l'une d'elles | en cas de problème |
 
 ```bash
-export PROJECT_ID="ton-projet-gcp"
-export REGION="europe-west1"
-export SERVICE="netsentinel-api"
-export SA="netsentinel-run"
-export REPO="netsentinel"
+git clone <ce dépôt> && cd netsentinel-budget
+cp deploy/gcp/config.env.example deploy/gcp/config.env    # renseigner PROJECT_ID (aucun secret dans ce fichier)
+./deploy/gcp/setup.sh                 # relire les commandes affichées
+./deploy/gcp/setup.sh --apply
+./deploy/gcp/first-deploy.sh --apply
 ```
 
-Un seul secret : `netsentinel-api-key`, la clé exigée dans l'en-tête `X-API-Key`.
+Paramètres (`config.env`) : projet, région, noms des ressources, `PUBLIC_ACCESS`, nombre d'instances, limite de
+débit. Un seul secret, `netsentinel-api-key`, généré par `setup.sh` et jamais affiché ; pour le lire :
+`gcloud secrets versions access latest --secret=netsentinel-api-key`.
 
-## 3. Mise en place (une seule fois)
+**Accès.** Avec `PUBLIC_ACCESS="true"`, Cloud Run accepte toutes les requêtes et c'est l'en-tête `X-API-Key` qui
+protège les routes de prédiction. Pour un usage strictement interne à un ministère, mets `"false"` : seuls les
+comptes autorisés pourront appeler le service, en plus de la clé.
 
 ```bash
-gcloud config set project "$PROJECT_ID"
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
-  cloudbuild.googleapis.com secretmanager.googleapis.com
-
-gcloud artifacts repositories create "$REPO" --repository-format=docker --location="$REGION"
-gcloud iam service-accounts create "$SA" --display-name="NetSentinel — Cloud Run"
-
-# Clé d'API générée et stockée sans jamais s'afficher
-python3 -c "import secrets; print(secrets.token_urlsafe(32), end='')" \
-  | gcloud secrets create netsentinel-api-key --replication-policy=automatic --data-file=-
-
-# Privilège minimal : le service ne lit que ce secret
-gcloud secrets add-iam-policy-binding netsentinel-api-key \
-  --member="serviceAccount:$SA@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role=roles/secretmanager.secretAccessor
-
-PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
-CB="serviceAccount:$PROJECT_NUMBER@cloudbuild.gserviceaccount.com"
-gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$CB" --role=roles/run.admin
-gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$CB" --role=roles/artifactregistry.writer
-gcloud iam service-accounts add-iam-policy-binding "$SA@$PROJECT_ID.iam.gserviceaccount.com" \
-  --member="$CB" --role=roles/iam.serviceAccountUser
+gcloud run services add-iam-policy-binding netsentinel-api --region=europe-west1 \
+  --member="serviceAccount:client@projet-du-client.iam.gserviceaccount.com" --role=roles/run.invoker
 ```
 
-> Vérifie dans **Cloud Build → Paramètres** quel compte de service est utilisé et adapte `CB`.
+**Compte Cloud Build.** `setup.sh` demande à Google lequel est utilisé (compte Compute par défaut ou ancien compte
+Cloud Build, selon l'âge du projet) et lui donne `run.developer` plutôt que `run.admin` : il peut déployer, pas
+modifier qui a le droit d'appeler le service.
 
-## 4. Premier déploiement
-
-```bash
-IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/api:initial"
-gcloud builds submit --tag "$IMAGE"
-
-gcloud run deploy "$SERVICE" --image="$IMAGE" --region="$REGION" \
-  --service-account="$SA@$PROJECT_ID.iam.gserviceaccount.com" \
-  --allow-unauthenticated --port=8080 --cpu=1 --memory=256Mi \
-  --min-instances=0 --max-instances=2 --concurrency=80 --timeout=30 \
-  --set-env-vars="NETSENTINEL_ENV=production,NETSENTINEL_RATE_LIMIT=120,NETSENTINEL_TRUSTED_PROXY_HOPS=1" \
-  --set-secrets="NETSENTINEL_API_KEY=netsentinel-api-key:latest"
-
-gcloud run services update "$SERVICE" --region="$REGION" \
-  --startup-probe=httpGet.path=/health,periodSeconds=2,failureThreshold=10 \
-  --liveness-probe=httpGet.path=/health,periodSeconds=30
-
-URL=$(gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')
-curl "$URL/health"
-
-# Appel authentifié
-KEY=$(gcloud secrets versions access latest --secret=netsentinel-api-key)
-curl -X POST "$URL/predict" -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{"department_id":"A","latency_ms":95,"packet_loss_pct":4.2,"bandwidth_mbps":45,"cpu_pct":78,"temperature_celsius":68}'
-```
-
-`--allow-unauthenticated` laisse Cloud Run accepter les requêtes ; c'est l'en-tête `X-API-Key` qui protège les
-routes de prédiction. Pour un usage strictement interne à un ministère, préfère retirer ce drapeau et
-n'autoriser que des comptes de service nommés (`roles/run.invoker`) : l'authentification est alors assurée par
-Google, en plus de la clé.
-
-## 5. Déploiements suivants
+## 3. Déploiements suivants
 
 ```bash
 gcloud builds submit --config cloudbuild.yaml
 ```
 
-Tests → image → Artifact Registry → révision sans trafic → `/health` → bascule.
+Tests → image → Artifact Registry → révision sans trafic → `/health` → bascule. Si tu as changé un nom dans
+`config.env`, `first-deploy.sh` affiche la commande avec les `--substitutions` correspondantes.
 
-## 6. Retour arrière
+## 4. Retour arrière
 
 ```bash
-gcloud run revisions list --service="$SERVICE" --region="$REGION"
-gcloud run services update-traffic "$SERVICE" --region="$REGION" --to-revisions=NOM-DE-LA-REVISION=100
+./deploy/gcp/rollback.sh                                   # liste les révisions
+./deploy/gcp/rollback.sh netsentinel-api-00012-abc --apply # 100 % du trafic sur cette révision
 ```
 
 Aucune donnée persistante : le retour arrière est complet et immédiat.
 
-Renouveler la clé d'API (fuite, départ d'un prestataire) :
-
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(32), end='')" \
-  | gcloud secrets versions add netsentinel-api-key --data-file=-
-gcloud run services update "$SERVICE" --region="$REGION" \
-  --update-secrets="NETSENTINEL_API_KEY=netsentinel-api-key:latest"
-```
-
-## 7. Estimation de coût mensuel
+## 5. Estimation de coût mensuel
 
 Ordres de grandeur, à **vérifier avec le simulateur Google Cloud** : je n'ai pas interrogé la grille tarifaire en vigueur.
 
@@ -126,7 +85,7 @@ Ordres de grandeur, à **vérifier avec le simulateur Google Cloud** : je n'ai p
 | Secret Manager, Cloud Build, Logging | usage courant | < 1 $ |
 | **Total** | | **≈ 0 à 1 $** |
 
-## 8. Points d'attention
+## 6. Points d'attention
 
 - **Hébergement de données d'un ministère.** `europe-west1` est en Belgique. Vérifie les exigences de
   localisation et de souveraineté du client avant tout déploiement réel : c'est une question contractuelle, pas

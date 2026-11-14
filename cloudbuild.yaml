@@ -1,6 +1,6 @@
 # NetSentinel — pipeline Cloud Build : tests → image → Artifact Registry → Cloud Run.
 #   gcloud builds submit --config cloudbuild.yaml
-# Aucun secret ici ; le service doit déjà exister (premier déploiement manuel, voir DEPLOY.md).
+# Aucun secret ici ; le service doit déjà exister (deploy/gcp/first-deploy.sh, voir DEPLOY.md).
 substitutions:
   _REGION: europe-west1
   _REPOSITORY: netsentinel
