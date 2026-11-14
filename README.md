@@ -8,6 +8,31 @@
 
 ---
 
+## ⚠️ État réel du prototype
+
+Cette section décrit ce que contient **réellement** le dépôt aujourd'hui, pour éviter tout malentendu.
+
+- **Score de risque** : combinaison pondérée de cinq métriques (heuristique à poids fixes, `api/main.py`).
+  **Aucun modèle LightGBM ou LSTM n'est entraîné ni chargé.** Les « valeurs SHAP » renvoyées par l'API sont les
+  contributions de cette pondération, pas le résultat d'une explication de modèle.
+- **Les performances annoncées plus bas** (précision, rappel, délai de détection, ROI) sont des objectifs de
+  conception : aucune évaluation ne les étaye dans ce dépôt.
+- **Tableau de bord React** (`reseau-prediction.jsx`) : quatre onglets — tableau de bord, prédiction H+1,
+  alertes, rapport. Les mesures y sont **simulées** à partir de `data/arcep_sample.json` ; le score est recalculé
+  dans le navigateur avec la même formule que l'API (`dashboard/score.js`, vérifié par un test).
+- **Ce qui fonctionne et est testé** : l'API FastAPI (33 tests), le calcul de score du tableau de bord (4 tests),
+  l'image Docker et le déploiement (`DEPLOY.md`).
+
+### Lancer l'API
+
+```bash
+pip install -r requirements-dev.txt
+uvicorn api.main:app --reload --port 8000     # documentation interactive : http://localhost:8000/docs
+python -m pytest
+```
+
+---
+
 ## 🎯 Objectif
 
 Anticiper les coupures réseau dans les départements ministériels **1 heure avant** qu'elles surviennent, afin de déclencher des actions préventives et réduire les pertes opérationnelles estimées à **€233 000/an**.
@@ -82,11 +107,16 @@ Métriques réseau (toutes les 5 min)
 
 ```
 netsentinel-budget/
-├── src/
-│   └── reseau-prediction.jsx   # Dashboard React principal
-├── README.md
-├── package.json
-└── .gitignore
+├── api/main.py              # API FastAPI (score, validation, accès)
+├── data/arcep_sample.json   # 5 départements synthétiques
+├── tests/test_api.py        # tests de l'API
+├── reseau-prediction.jsx    # tableau de bord React (4 onglets)
+├── dashboard/               # calcul de score partagé, feuille de style
+├── App.js, index.js, index.html, package.json, vite.config.js
+├── Dockerfile, cloudbuild.yaml    # image et pipeline Google Cloud
+├── requirements.txt         # exécution · requirements-ml.txt : futur modèle
+├── AUDIT.md, SECURITY.md, DEPLOY.md
+└── README.md
 ```
 
 ---

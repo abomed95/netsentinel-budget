@@ -1,0 +1,8 @@
+# Pour l'entraînement du futur modèle (LightGBM, ingestion Kafka). Non utilisé
+# par l'API telle qu'elle est : versions reprises du fichier d'origine.
+numpy==1.26.4
+lightgbm==4.3.0
+scikit-learn==1.5.0
+pandas==2.2.2
+kafka-python==2.0.2
+python-dotenv==1.0.1

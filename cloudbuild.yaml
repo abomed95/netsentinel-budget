@@ -1,0 +1,65 @@
+# NetSentinel — pipeline Cloud Build : tests → image → Artifact Registry → Cloud Run.
+#   gcloud builds submit --config cloudbuild.yaml
+# Aucun secret ici ; le service doit déjà exister (premier déploiement manuel, voir DEPLOY.md).
+substitutions:
+  _REGION: europe-west1
+  _REPOSITORY: netsentinel
+  _SERVICE: netsentinel-api
+  _SERVICE_ACCOUNT: netsentinel-run
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: tests
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        pip install --quiet --no-cache-dir -r requirements-dev.txt
+        python -m pytest
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$SHORT_SHA
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api']
+
+  # Nouvelle révision SANS trafic : seule l'image change.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$SHORT_SHA
+      - --region=${_REGION}
+      - --service-account=${_SERVICE_ACCOUNT}@$PROJECT_ID.iam.gserviceaccount.com
+      - --no-traffic
+      - --tag=candidat
+      - --quiet
+
+  - id: bascule
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        url=$(gcloud run services describe ${_SERVICE} --region=${_REGION} \
+              --format='value(status.traffic.filter("tag","candidat").url)' | head -1)
+        curl --fail --silent --show-error --max-time 30 "$url/health"
+        gcloud run services update-traffic ${_SERVICE} --region=${_REGION} --to-latest --quiet
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest
+
+timeout: 900s

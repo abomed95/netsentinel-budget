@@ -1,0 +1,410 @@
+/*
+ * NetSentinel — feuille de style du tableau de bord.
+ *
+ * Principes (skill apple-design, transposés au web) :
+ *  - police du système, interlettrage et interligne réglés PAR TAILLE ;
+ *  - une barre translucide flottante, le contenu défile dessous ;
+ *  - retour immédiat à l'appui (:active), jamais au relâchement ;
+ *  - mouvements courts sur transform/opacity, remplacés par un fondu si
+ *    l'utilisateur demande moins d'animations ;
+ *  - clair ET sombre : chaque couleur est choisie pour son mode, pas inversée.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #ececf0;
+  --chrome: rgba(250, 250, 252, 0.72);
+  --text: #1d1d1f;
+  --text-2: #48484a;
+  --text-3: #636366;
+  --hairline: rgba(0, 0, 0, 0.1);
+  --grid: #e1e0d9;
+  --accent: #0a5fd6;
+  --accent-contrast: #ffffff;
+  --series: #2a78d6;
+  --series-soft: rgba(42, 120, 214, 0.14);
+  --focus: #0a5fd6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+
+  /* Statuts : réservés à l'état du réseau, toujours avec une icône et un libellé. */
+  --good: #0ca30c;
+  --good-text: #006300;
+  --good-soft: rgba(12, 163, 12, 0.12);
+  --warning: #fab219;
+  --warning-text: #6b4700;
+  --warning-soft: rgba(250, 178, 25, 0.22);
+  --critical: #d03b3b;
+  --critical-text: #a51f1f;
+  --critical-soft: rgba(208, 59, 59, 0.12);
+
+  --radius: 16px;
+  --radius-s: 10px;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b0d;
+    --surface: #1a1a1c;
+    --surface-2: #2a2a2e;
+    --chrome: rgba(22, 22, 24, 0.72);
+    --text: #f5f5f7;
+    --text-2: #c7c7cc;
+    --text-3: #a1a1a8;
+    --hairline: rgba(255, 255, 255, 0.14);
+    --grid: #2c2c2a;
+    --accent: #4c9bff;
+    --accent-contrast: #06121f;
+    --series: #5aa2f0;
+    --series-soft: rgba(90, 162, 240, 0.18);
+    --focus: #6bb0ff;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --good-text: #4cd04c;
+    --good-soft: rgba(12, 163, 12, 0.2);
+    --warning-text: #fbc24a;
+    --warning-soft: rgba(250, 178, 25, 0.18);
+    --critical: #e25555;
+    --critical-text: #ff8a8a;
+    --critical-soft: rgba(226, 85, 85, 0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  /* Police du système : elle embarque déjà ses réglages optiques. */
+  font: 100%/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ns-app { min-height: 100vh; padding-bottom: 3rem; }
+
+/* ── Barre flottante ───────────────────────────────────────────────────── */
+.ns-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--chrome);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.ns-chrome-inner,
+.ns-main {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.ns-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0 0.5rem;
+}
+
+.ns-brand h1 { font-size: 1.0625rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.2; }
+.ns-brand p { font-size: 0.8125rem; color: var(--text-3); letter-spacing: 0.005em; }
+
+.ns-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.ns-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+
+/* ── Onglets (contrôle segmenté) ───────────────────────────────────────── */
+.ns-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 0.625rem;
+  background: var(--surface-2);
+  border-radius: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ns-tabs::-webkit-scrollbar { display: none; }
+/* Sur petit écran les onglets défilent : un fondu au bord droit signale qu'il y en a d'autres. */
+@media (max-width: 32rem) {
+  .ns-tabs { -webkit-mask-image: linear-gradient(to right, #000 86%, transparent); mask-image: linear-gradient(to right, #000 86%, transparent); padding-right: 1.5rem; }
+}
+
+.ns-tab {
+  flex: 1 0 auto;
+  min-height: 44px; /* cible tactile */
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 180ms var(--ease), color 180ms var(--ease), transform 100ms ease-out;
+}
+.ns-tab:hover { color: var(--text); }
+.ns-tab:active { transform: scale(0.97); }
+.ns-tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.ns-count {
+  display: inline-block;
+  min-width: 1.35rem;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--critical);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.35rem;
+  text-align: center;
+}
+
+/* ── Contenu ───────────────────────────────────────────────────────────── */
+.ns-main { padding-top: 1.25rem; }
+
+.ns-panel { animation: ns-arrive 260ms var(--ease) both; }
+@keyframes ns-arrive {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.ns-title {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  line-height: 1.1; /* interligne serré sur les grands corps */
+  letter-spacing: -0.022em; /* interlettrage négatif quand le texte grandit */
+}
+.ns-lede { margin-top: 0.375rem; color: var(--text-2); font-size: 0.9375rem; max-width: 46rem; }
+
+.ns-section { margin-top: 1.5rem; }
+.ns-h2 { font-size: 1.0625rem; font-weight: 650; letter-spacing: -0.012em; line-height: 1.25; margin-bottom: 0.75rem; }
+
+.ns-grid { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
+@media (min-width: 40rem) {
+  .ns-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .ns-grid.cols-2, .ns-grid.cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 64rem) { .ns-grid.cards { grid-template-columns: repeat(3, 1fr); } }
+
+.ns-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.ns-tile-label { font-size: 0.8125rem; color: var(--text-3); letter-spacing: 0.005em; }
+.ns-tile-value {
+  margin-top: 0.125rem;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.ns-tile-sub { margin-top: 0.125rem; font-size: 0.8125rem; color: var(--text-2); }
+
+/* Carte de département : toute la carte est le bouton. */
+.ns-dept {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 120ms ease-out, border-color 180ms var(--ease);
+}
+.ns-dept:hover { border-color: var(--accent); }
+.ns-dept:active { transform: scale(0.985); }
+
+.ns-dept-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.ns-dept-name { font-size: 1rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
+.ns-dept-region { font-size: 0.8125rem; color: var(--text-3); }
+.ns-dept-prob {
+  margin-top: 0.75rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.ns-dept-prob small { font-size: 0.8125rem; font-weight: 500; letter-spacing: 0; color: var(--text-3); }
+
+.ns-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.25rem 0.75rem; margin-top: 0.75rem; }
+/* Libellés longs : une seule colonne sur petit écran, sinon les valeurs passent à la ligne. */
+@media (max-width: 39.99rem) { .ns-metrics.stack { grid-template-columns: 1fr; } }
+.ns-metric { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8125rem; }
+.ns-metric dt { color: var(--text-3); }
+.ns-metric dd { font-variant-numeric: tabular-nums; font-weight: 550; white-space: nowrap; }
+
+/* ── Statuts : icône + libellé, jamais la couleur seule ────────────────── */
+.ns-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.ns-badge svg { width: 14px; height: 14px; flex: none; }
+.ns-badge.NORMAL { background: var(--good-soft); color: var(--good-text); }
+.ns-badge.MODERE { background: var(--warning-soft); color: var(--warning-text); }
+.ns-badge.CRITIQUE { background: var(--critical-soft); color: var(--critical-text); }
+
+/* ── Graphiques ────────────────────────────────────────────────────────── */
+.ns-chart { position: relative; margin-top: 0.75rem; touch-action: pan-y; }
+.ns-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ns-spark-line { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ns-spark-area { fill: var(--series-soft); }
+.ns-threshold { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.7; }
+.ns-axis-text { fill: var(--text-3); font-size: 10px; }
+.ns-crosshair { stroke: var(--text-3); stroke-width: 1; }
+.ns-point { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+
+.ns-tooltip {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -115%);
+}
+
+.ns-gauge-wrap { display: grid; place-items: center; text-align: center; }
+.ns-gauge-wrap svg { max-width: 17rem; }
+.ns-gauge-track { fill: none; stroke: var(--surface-2); stroke-width: 14; stroke-linecap: round; }
+.ns-gauge-fill { fill: none; stroke-width: 14; stroke-linecap: round; transition: stroke-dashoffset 420ms var(--ease), stroke 300ms ease; }
+.ns-gauge-value { font-size: 2.75rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.ns-gauge-caption { margin: 0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--text-3); }
+
+.ns-radar { display: block; width: 100%; max-width: 26rem; margin: 0 auto; }
+.ns-radar-label { font-size: 12px; }
+.ns-radar-grid { fill: none; stroke: var(--grid); stroke-width: 1; }
+.ns-radar-shape { fill: var(--series-soft); stroke: var(--series); stroke-width: 2; stroke-linejoin: round; }
+
+.ns-bars { display: grid; gap: 0.625rem; }
+.ns-bar-row { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.75rem; font-size: 0.875rem; }
+.ns-bar-row span:nth-child(2) { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ns-bar-track { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.ns-bar-fill { height: 100%; border-radius: 4px; background: var(--series); transition: width 420ms var(--ease); }
+.ns-note { margin-top: 0.75rem; font-size: 0.8125rem; color: var(--text-3); }
+
+/* ── Champs ────────────────────────────────────────────────────────────── */
+.ns-select, .ns-button {
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+.ns-button { cursor: pointer; font-weight: 600; transition: transform 100ms ease-out, background-color 160ms ease; }
+.ns-button:active { transform: scale(0.97); }
+.ns-button.primary { background: var(--accent); border-color: transparent; color: var(--accent-contrast); }
+.ns-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.625rem; margin-top: 1rem; }
+.ns-field-label { font-size: 0.8125rem; color: var(--text-3); }
+
+/* ── Journal d'alertes ─────────────────────────────────────────────────── */
+.ns-log { list-style: none; display: grid; gap: 0.5rem; }
+.ns-log li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  align-items: start;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  animation: ns-arrive 260ms var(--ease) both;
+}
+.ns-log-text { font-size: 0.9375rem; }
+.ns-log-time { grid-column: 2; font-size: 0.8125rem; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.ns-empty { padding: 2.5rem 1rem; text-align: center; color: var(--text-2); }
+.ns-empty strong { display: block; font-size: 1.0625rem; color: var(--text); letter-spacing: -0.01em; }
+
+.ns-banner {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-s);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 0.875rem;
+}
+.ns-banner svg { width: 18px; height: 18px; flex: none; margin-top: 0.1rem; }
+.ns-banner.error { background: var(--critical-soft); color: var(--critical-text); }
+
+/* ── Rapport ───────────────────────────────────────────────────────────── */
+.ns-table-wrap { overflow-x: auto; }
+.ns-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.ns-table th, .ns-table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--hairline); }
+.ns-table th { font-size: 0.75rem; font-weight: 600; color: var(--text-3); letter-spacing: 0.02em; text-transform: uppercase; }
+/* En-tête de ligne (nom du département) : lu comme une donnée, pas comme un intitulé de colonne. */
+.ns-table tbody th { font-size: 0.875rem; font-weight: 600; color: var(--text); letter-spacing: 0; text-transform: none; }
+.ns-table td.num, .ns-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.ns-list { padding-left: 1.1rem; display: grid; gap: 0.35rem; font-size: 0.9375rem; color: var(--text-2); }
+
+.ns-skeleton { border-radius: var(--radius); background: var(--surface-2); min-height: 9.5rem; animation: ns-pulse 1.4s ease-in-out infinite; }
+@keyframes ns-pulse { 50% { opacity: 0.55; } }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+
+/* ── Préférences d'accessibilité ───────────────────────────────────────── */
+@keyframes ns-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  /* Moins de mouvement ne veut pas dire aucun retour : on garde un fondu court. */
+  .ns-panel, .ns-log li { animation: ns-fade 160ms ease both; }
+  .ns-skeleton { animation: none; }
+  .ns-tab, .ns-button, .ns-dept, .ns-gauge-fill, .ns-bar-fill { transition: none; }
+  .ns-tab:active, .ns-button:active, .ns-dept:active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ns-chrome { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  :root { --hairline: currentColor; --text-2: var(--text); --text-3: var(--text); }
+  .ns-chrome { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+@media print {
+  .ns-chrome, .ns-toolbar, .ns-no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .ns-card { box-shadow: none; break-inside: avoid; }
+}

@@ -1,0 +1,42 @@
+name: NetSentinel CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test-api:
+    name: Tests de l'API FastAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Installer les dépendances
+        run: pip install -r requirements-dev.txt
+      # Un échec de test doit faire échouer le job : l'ancienne version le masquait.
+      - name: Tests
+        run: python -m pytest
+
+  build-frontend:
+    name: Tableau de bord React (tests + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Le score du tableau de bord doit rester identique à celui de l'API.
+      - run: npm test
+      - run: npm run build
