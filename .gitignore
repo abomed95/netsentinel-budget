@@ -220,3 +220,6 @@ __marimo__/
 # Tableau de bord (Node)
 node_modules/
 build/
+
+# Paramètres locaux du déploiement Google Cloud (copie de config.env.example)
+deploy/gcp/config.env
